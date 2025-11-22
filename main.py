@@ -75,6 +75,30 @@ AI：这个代码文件……
 AI：%%create test.txt
 我已经帮您创建了test.txt文件。
 
+用户：请你写一个Usage.md。
+AI：%%create Usage.md
+```markdown
+# 项目使用说明
+
+## 安装依赖
+
+\\`\\`\\`bash
+pip install -r requirements.txt
+\\`\\`\\`
+
+## 运行项目
+
+\\`\\`\\`bash
+python main.py
+\\`\\`\\`
+
+## 测试项目
+
+\\`\\`\\`bash
+python -m pytest
+\\`\\`\\`
+```
+
 请确保你的回复清晰且遵循这个格式，可以添加额外的解释文字。
 """
 ai = AI(system_prompt, api_key, base_url, max_tokens=2048)
@@ -89,8 +113,8 @@ class CLI:
         self.project_viewer = ProjectContexter(self.whereami)
         self.ques, self.response = None, None
         self.after_question = self.project_viewer.display_project_context()
-        self.run_s, self.file_s = "", ""
-        self.run_command, self.change_files = [], {}
+        self.asks = {}
+        self.change_files = {}
     
     def question(self):
         self.console.print(f"[bold blue]ASK {self.whereami}>>> [/bold blue]", end="")
@@ -120,115 +144,191 @@ class CLI:
                 self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
     
     def ask(self):
-        self.console.print("[grey]AI thinking[/grey]", end="")
-        self.thinking_dots()
+        self.console.print("[grey]AI thinking[/grey]")
         self.response = parse_ai_response(self.ai.ask(self.ques))
         self.submit_op_prep()
     
-    def thinking_dots(self):
-        for _ in range(3):
-            self.console.print(".", end="")
-            time.sleep(0.5)
-
     def submit_op_prep(self):
-        self.run_command = []
+        def _generate_runstr(cmd: str | list[str]) -> str:
+            cmd_str = cmd if isinstance(cmd, str) else " ".join(cmd)
+            run_s = f"[bold yellow] {'-' * 20} Execute? ([bold green]y[/bold green]/[bold red]n[/bold red]) {'-' * 20}\n"
+            run_s += f"|  {cmd_str.ljust(len(run_s.splitlines()[0]) - 62)}|\n"
+            run_s += f" {'-' * (len(run_s.splitlines()[0]) - 60)}\n"
+            return run_s
+        
+        def _generate_filestr(filename: str, change_type: tuple[str, str | None]) -> str:
+            file_s = f"[bold yellow]{'-' * 20} FileChange? ([bold green]y[/bold green]/[bold red]n[/bold red]) {'-' * 20}\n"
+            file_s += f"|  {f'{change_type[0]} {filename}'.ljust(len(file_s.splitlines()[0]) - 64)}|\n"
+            if change_type[0] in ["edit", "create"]:
+                file_s += f"|     └── {change_type[1].ljust(len(file_s.splitlines()[0]) - 71)}|\n"
+            file_s += f" {'-' * (len(file_s.splitlines()[0]) - 60)}\n"
+            return file_s
+        
+        self.asks = {}
         self.change_files = {}
+
+        op_counter = 0
+        
         for op in self.response:
             if isinstance(op, str):
                 self.console.print(op)
             elif isinstance(op, Operation):
                 match op.type:
                     case "run":
-                        self.run_command.append(op.command)
+                        key = f"run_{op_counter}"
+                        display_str = _generate_runstr(op.command)
+                        self.asks[key] = (display_str, "run", " ".join(op.command))
+                        op_counter += 1
+                    
                     case "read":
                         self.ai._add_history("system", "FILE " + op.file + "\n" + FileChanger(op.file).read())
+                    
                     case "edit":
                         relfilename = op.file.split("\\")[-1]
-                        with open((filename := f"{self.whereami}/tempfile{relfilename}"), "w", encoding="utf-8") as f:
+                        temp_filename = f"{self.whereami}/tempfile{relfilename}"
+                        with open(temp_filename, "w", encoding="utf-8") as f:
                             f.write(op.content)
-                        self.change_files[op.file] = ("edit", filename)
+                        display_str = _generate_filestr(relfilename, ("edit", temp_filename))
+                        self.asks[op.file] = (display_str, "file", ("edit", temp_filename))
+                        self.change_files[op.file] = ("edit", temp_filename)
+                    
                     case "delete":
+                        relfilename = op.file.split("\\")[-1]
+                        display_str = _generate_filestr(relfilename, ("delete", None))
+                        self.asks[op.file] = (display_str, "file", ("delete", None))
                         self.change_files[op.file] = ("delete", None)
+                    
                     case "create":
                         relfilename = op.file.split("\\")[-1]
-                        with open((filename := f"{self.whereami}/tempfile{relfilename}"), "w", encoding="utf-8") as f:
+                        temp_filename = f"{self.whereami}/tempfile{relfilename}"
+                        with open(temp_filename, "w", encoding="utf-8") as f:
                             f.write(op.content)
-                        self.change_files[op.file] = ("create", filename)
+                        display_str = _generate_filestr(relfilename, ("create", temp_filename))
+                        self.asks[op.file] = (display_str, "file", ("create", temp_filename))
+                        self.change_files[op.file] = ("create", temp_filename)
+                    
                     case "new_dir":
+                        relfilename = op.dir.split("\\")[-1]
+                        display_str = _generate_filestr(relfilename, ("new_dir", op.dir))
+                        self.asks[op.dir] = (display_str, "file", ("new_dir", op.dir))
                         self.change_files[op.dir] = ("new_dir", op.dir)
+                    
                     case "rename":
+                        relfilename = op.file.split("\\")[-1]
+                        display_str = _generate_filestr(relfilename, ("rename", op.new_name))
+                        self.asks[op.file] = (display_str, "file", ("rename", op.new_name))
                         self.change_files[op.file] = ("rename", op.new_name)
 
-
-        run_s = f"[bold yellow] {"-" * 20} Execute? ([bold green]y[/bold green]/[bold red]n[/bold red]) {"-" * 20}\n"
-        for cmd in self.run_command:
-            run_s += f"|  {" ".join(cmd).ljust(len(run_s.splitlines()[0]) - 62)}|\n"
-        run_s += f" {"-" * (len(run_s.splitlines()[0]) - 60)}\n"
-               
-        file_s = f"[bold yellow]{"-" * 20} FileChange? ([bold green]y[/bold green]/[bold red]n[/bold red]) {"-" * 20}\n"
-        for file, change_type in self.change_files.items():
-            file_s += f"|  {f'{change_type[0]} {file}'.ljust(len(file_s.splitlines()[0]) - 64)}|\n"
-            if change_type[0] == "edit" or change_type[0] == "create":
-                file_s += f"|     └── {f"{change_type[1]}".ljust(len(file_s.splitlines()[0]) - 71)}|\n"
-        file_s += f" {"-" * (len(file_s.splitlines()[0]) - 60)}\n"
-
-        self.run_s, self.file_s = run_s, file_s
         self.ask_for_changes()
 
     def ask_for_changes(self):
-        if self.run_command:
-            self.console.print(self.run_s)
-            self.console.print("[bold blue]CONFIRM >>> [/bold blue]", end="")
-            run_confirm = self.console.input()
-            if run_confirm.lower() == "y":
-                self._run_cmds()
-            else:
-                self.console.print("[bold red][-] Canceled. [/bold red]")
-                self.ai._add_history("system", "Command runs are canceled by user")
-        if self.change_files:
-            self.console.print(self.file_s)
-            self.console.print("[bold blue]CONFIRM >>> [/bold blue]", end="")
-            file_confirm = self.console.input()
-            if file_confirm.lower() == "y":
-                self._change_files()
-            else:
-                self.console.print("[bold red][-] Canceled. [/bold red]")
-                self.ai._add_history("system", "File changes are canceled by user")
+        if not self.asks:
+            return
+        
+        ask_for_all = "-" * 20 + " All Operations " + "-" * 20 + "\n"
+        for key in self.asks:
+            display_str, op_type, op_data = self.asks[key]
+            if op_type == "run":
+                ask_for_all += f"Command: {op_data}\n"
+            else:  # file operation
+                change_type, change_data = op_data
+                if change_type == "edit":
+                    ask_for_all += f"FileChange: edit {key} (from {change_data})\n"
+                elif change_type == "delete":
+                    ask_for_all += f"FileChange: delete {key}\n"
+                elif change_type == "create":
+                    ask_for_all += f"FileChange: create {key} (from {change_data})\n"
+                elif change_type == "new_dir":
+                    ask_for_all += f"FileChange: create directory {key}\n"
+                elif change_type == "rename":
+                    ask_for_all += f"FileChange: rename {key} -> {change_data}\n"
+        
+        ask_for_all += "-" * len(ask_for_all.splitlines()[0]) + "\n"
+        self.console.print(f"[bold yellow]{ask_for_all}[/bold yellow]")
+        
+        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one) >>> [/bold blue]", end="")
+        decision = self.console.input().strip().lower()
+        
+        keys_to_process = list(self.asks.keys())
+        
+        match decision:
+            case "a":
+                for key in keys_to_process:
+                    if key not in self.asks:
+                        continue
+                    display_str, op_type, op_data = self.asks[key]
+                    if op_type == "run":
+                        self._run_cmd(op_data)
+                    else:
+                        self._change_file(key, op_data)
+                    del self.asks[key]
+                    if key in self.change_files:
+                        del self.change_files[key]
+            
+            case "c":
+                self.console.print("[bold red][-] All operations canceled.[/bold red]")
+                self.ai._add_history("system", "All operations canceled by user")
+                self.asks.clear()
+                self.change_files.clear()
+            
+            case "o":
+                for key in keys_to_process:
+                    if key not in self.asks:
+                        continue
+                    
+                    display_str, op_type, op_data = self.asks[key]
+                    self.console.print(display_str)
+                    self.console.print("[bold blue]CONFIRM (y/n) >>> [/bold blue]", end="")
+                    confirm = self.console.input().strip().lower()
+                    
+                    if confirm == "y":
+                        if op_type == "run":
+                            self._run_cmd(op_data)
+                        else:
+                            self._change_file(key, op_data)
+                        del self.asks[key]
+                        if key in self.change_files:
+                            del self.change_files[key]
+                    else:
+                        self.console.print("[bold red][-] Operation canceled.[/bold red]")
+                        self.ai._add_history("system", f"Operation {key} canceled by user")
+                        del self.asks[key]
+                        if key in self.change_files:
+                            del self.change_files[key]
 
-    def _run_cmds(self):
-        for cmd in self.run_command:
-            result = self.command_executor.execute(cmd)
-            if result.returncode == 0:
-                self.console.print("[bold green][+][/bold green] " + result.stdout if result.stdout else "[bold green][+] Done[/bold green]")
-            else:
-                self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
-    
-    def _change_files(self):
-        for file, change_type in self.change_files.items():
-            match change_type[0]:
-                case "edit":
-                    with open(change_type[1], "r", encoding="utf-8") as f:
-                        content = f.read()
-                    FileChanger(file).rewrite(content)
-                    FileChanger(change_type[1]).delete()
-                case "create":
-                    with open(change_type[1], "r", encoding="utf-8") as f:
-                        content = f.read()
-                    FileChanger(file).rewrite(content)
-                    FileChanger(change_type[1]).delete()
-                case "delete":
-                    FileChanger(file).delete()
-                case "new_dir":
-                    os.mkdir(os.path.join(self.whereami, change_type[1]))
-                case "rename":
-                    FileChanger(file).rename(change_type[1])
+    def _run_cmd(self, cmd: str | list[str]):
+        result = self.command_executor.execute(cmd, cwd=self.whereami)
+        if result.returncode == 0:
+            output = result.stdout if result.stdout else "Done"
+            self.console.print(f"[bold green][+] {output}[/bold green]")
+        else:
+            self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
+
+    def _change_file(self, file: str, change_type_data: tuple[str, str | None]):
+        change_type, change_data = change_type_data
+        
+        match change_type:
+            case "edit" | "create":
+                with open(change_data, "r", encoding="utf-8") as f:
+                    content = f.read()
+                FileChanger(file).rewrite(content)
+                if os.path.exists(change_data):
+                    os.remove(change_data)
+            
+            case "delete":
+                FileChanger(file).delete()
+            
+            case "new_dir":
+                os.makedirs(os.path.join(self.whereami, change_data), exist_ok=True)
+            
+            case "rename":
+                FileChanger(file).rename(change_data)
     
     def update(self):
         self.ques, self.response = None, None
         self.project_viewer = ProjectContexter(self.whereami)
         self.after_question = self.project_viewer.display_project_context()
-        self.run_s, self.file_s = "", ""
-        self.run_command, self.change_files = [], {}
+        self.change_files = {}
 
     def run(self, working: bool = True):
         while working:
