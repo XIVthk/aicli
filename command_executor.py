@@ -53,8 +53,9 @@ class Commandor:
         """
         if not isinstance(cmd, (str, list)): 
             raise TypeError("Expected str or list, got", type(cmd))
-        cmd = cmd.split(" ") if isinstance(cmd, str) else cmd
-
+        import shlex
+        cmd = shlex.split(cmd) if isinstance(cmd, str) else cmd
+        
         if self.is_windows:
             if kwargs.get("shell") is None:
                 kwargs["shell"] = True

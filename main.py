@@ -46,7 +46,7 @@ system_prompt = """
 - 在非必要情况下，尽量使用%%run <command>而非其他对文件操作
 - 所有文件路径的分隔符都需要使用反斜杠
 - 你给出的所有命令都会在用户处请求同意，若用户不同意执行命令，你将会收到SYSTEM的提示，反之，你不会收到提示
-- 给出的所有文件中，若含有```markdown标记，则需要用\转义，即\\`\\`\\`
+- 给出的所有文件中，若含有```markdown标记，则需要用\\转义，即\\`\\`\\`
 
 **示例：**
 
@@ -185,7 +185,7 @@ class CLI:
                     
                     case "edit":
                         relfilename = op.file.split("\\")[-1]
-                        temp_filename = f"{self.whereami}/tempfile{relfilename}"
+                        temp_filename = f"{self.whereami}\\tempfile{relfilename}"
                         with open(temp_filename, "w", encoding="utf-8") as f:
                             f.write(op.content)
                         display_str = _generate_filestr(relfilename, ("edit", temp_filename))
@@ -200,7 +200,7 @@ class CLI:
                     
                     case "create":
                         relfilename = op.file.split("\\")[-1]
-                        temp_filename = f"{self.whereami}/tempfile{relfilename}"
+                        temp_filename = f"{self.whereami}\\tempfile{relfilename}"
                         with open(temp_filename, "w", encoding="utf-8") as f:
                             f.write(op.content)
                         display_str = _generate_filestr(relfilename, ("create", temp_filename))
@@ -233,11 +233,11 @@ class CLI:
             else:  # file operation
                 change_type, change_data = op_data
                 if change_type == "edit":
-                    ask_for_all += f"FileChange: edit {key} (from {change_data})\n"
+                    ask_for_all += f"FileChange: edit {key}\n"
                 elif change_type == "delete":
                     ask_for_all += f"FileChange: delete {key}\n"
                 elif change_type == "create":
-                    ask_for_all += f"FileChange: create {key} (from {change_data})\n"
+                    ask_for_all += f"FileChange: create {key}\n"
                 elif change_type == "new_dir":
                     ask_for_all += f"FileChange: create directory {key}\n"
                 elif change_type == "rename":
@@ -269,6 +269,9 @@ class CLI:
                 self.console.print("[bold red][-] All operations canceled.[/bold red]")
                 self.ai._add_history("system", "All operations canceled by user")
                 self.asks.clear()
+                for temp in self.change_files:
+                    if self.change_files[temp][0] == "create":
+                        os.remove(self.change_files[temp][1])
                 self.change_files.clear()
             
             case "o":
