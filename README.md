@@ -20,7 +20,7 @@
 ### 安装步骤
 1. 克隆仓库：
 ```bash
-git clone https://github.com/yourusername/aicli.git
+git clone https://github.com/XIVthk/aicli.git
 ```
 
 2. 安装依赖：
@@ -56,7 +56,7 @@ ASK C:/project>>> 请显示main.py的内容
 AI会自动读取并显示文件内容
 
 #### 示例2：创建新文件
-`cover``
+```
 ASK C:/project>>> 请创建一个test.py文件，内容为打印"Hello World"
 ```
 AI会创建文件并请求确认

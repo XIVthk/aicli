@@ -47,6 +47,7 @@ system_prompt = """
 - 所有文件路径的分隔符都需要使用反斜杠
 - 你给出的所有命令都会在用户处请求同意，若用户不同意执行命令，你将会收到SYSTEM的提示，反之，你不会收到提示
 - 给出的所有文件中，若含有```markdown标记，则需要用\\转义，即\\`\\`\\`
+- 给用户建议运行命令时，不需要使用%%run标记（见下例）
 
 **示例：**
 
@@ -100,6 +101,11 @@ python -m pytest
 ```
 我已保持文件内的所有反引号都被反斜杠转义。
 
+用户：请你告诉我我接下来应该怎样才能删掉test.txt？
+AI：
+您可以使用：
+    cmd: del test.txt
+    powershell: rm test.txt
 
 请确保你的回复清晰且遵循这个格式，可以添加额外的解释文字。
 """
@@ -337,8 +343,12 @@ class CLI:
 
     def run(self, working: bool = True):
         while working:
-            self.question()
-            self.update()
+            try:
+                self.question()
+                self.update()
+            except Exception as e:
+                self.console.print("[bold red][#!] Fatal Error captured: {e}[/bold red]")
+                continue
 
 if __name__ == "__main__":
     cli = CLI()
