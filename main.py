@@ -189,7 +189,7 @@ class CLI:
                         relfilename = op.file.split("\\")[-1]
                         temp_filename = f"{self.whereami}\\tempfile{relfilename}"
                         with open(temp_filename, "w", encoding="utf-8") as f:
-                            f.write(op.content)
+                            f.write(op.content.replace("\\`", "`"))
                         display_str = _generate_filestr(relfilename, ("edit", temp_filename))
                         self.asks[op.file] = (display_str, "file", ("edit", temp_filename))
                         self.change_files[op.file] = ("edit", temp_filename)
@@ -204,7 +204,7 @@ class CLI:
                         relfilename = op.file.split("\\")[-1]
                         temp_filename = f"{self.whereami}\\tempfile{relfilename}"
                         with open(temp_filename, "w", encoding="utf-8") as f:
-                            f.write(op.content)
+                            f.write(op.content.replace("\\`", "`"))
                         display_str = _generate_filestr(relfilename, ("create", temp_filename))
                         self.asks[op.file] = (display_str, "file", ("create", temp_filename))
                         self.change_files[op.file] = ("create", temp_filename)
