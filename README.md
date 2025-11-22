@@ -63,7 +63,7 @@ AI会创建文件并请求确认
 
 #### 示例3：执行命令
 \`\`\`
-ASK C:/project>>> /ls -la
+ASK C:/project>>> /ls-la
 \`\`\`
 直接执行ls命令并显示结果
 

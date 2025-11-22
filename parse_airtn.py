@@ -114,9 +114,9 @@ def parse_ai_response(response: str) -> list[Operation | str]:
 
 if __name__ == "__main__":
     print(parse_ai_response("""
-%%new_dir a
-%%create hello.py
-```python
-print("hello")
-```
-%%run python hello.py"""))
+%%create hello.md
+```markdown
+\\`\\`\\`bash
+???
+\\`\\`\\`
+```"""))
