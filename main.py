@@ -254,14 +254,12 @@ class CLI:
                     
                     display_str, op_type, op_data = self.asks[key]
                     self.console.print(display_str)
-                    self.console.print("[bold blue]CONFIRM (y/n/?=skip but remain the file, default=?) >>> [/bold blue]", end="")
+                    self.console.print("[bold blue]CONFIRM (y/n/s=skip(remain files), default=y) >>> [/bold blue]", end="")
                     confirm = self.console.input().strip().lower()
                     
-                    if confirm == "y":
-                        if op_type == "run":
-                            self._run_cmd(op_data)
-                        else:
-                            self._change_file(key, op_data)
+                    if confirm == "s":
+                        self.console.print("[bold yellow][!] Operation skipped but the file remains.[/bold yellow]")
+                        self.ai._add_history("system", f"Operation {key} skipped but the file remains")
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
@@ -273,9 +271,11 @@ class CLI:
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
-                    else:
-                        self.console.print("[bold yellow][!] Operation skipped but the file remains.[/bold yellow]")
-                        self.ai._add_history("system", f"Operation {key} skipped but the file remains")
+                    else:  
+                        if op_type == "run":
+                            self._run_cmd(op_data)
+                        else:
+                            self._change_file(key, op_data)
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
