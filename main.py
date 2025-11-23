@@ -41,7 +41,7 @@ system_prompt = """
 - 重命名文件 %%rename <file> <new_name>  (使用%%run mv)
 - 每个标记必须单独一行
 - 文件内容从标记的下一行开始，到下一个标记或回复结束
-- 任何文件路径都必须是绝对路径，禁用相对路径
+- 任何文件路径都必须是绝对路径，禁用相对路径 (除了%%run dir)
 - 在非必要情况下，尽量使用%%run <command>而非其他对文件操作 (除了%%edit和%%create)
 - 所有文件路径的分隔符都需要使用反斜杠
 - 你给出的所有命令都会在用户处请求同意，若用户不同意执行命令，你将会收到SYSTEM的提示，反之，你不会收到提示
@@ -206,7 +206,7 @@ class CLI:
             else:  # file operation
                 change_type, change_data = op_data
                 if change_type == "edit":
-                    ask_for_all += f"|  FC: edit {key.ljust(len(ask_for_all.splitlines()[0]) - 5)}  |\n"
+                    ask_for_all += f"|  FC: edit {key.ljust(len(ask_for_all.splitlines()[0]) - 14)}  |\n"
                 elif change_type == "delete":
                     ask_for_all += f"|  FC: delete {key.ljust(len(ask_for_all.splitlines()[0]) - 7)}  |\n"
                 elif change_type == "create":
@@ -243,7 +243,7 @@ class CLI:
                 self.ai._add_history("system", "All operations canceled by user")
                 self.asks.clear()
                 for temp in self.change_files:
-                    if self.change_files[temp][0] == "create":
+                    if self.change_files[temp][0] == "create" or self.change_files[temp][0] == "edit":
                         os.remove(self.change_files[temp][1])
                 self.change_files.clear()
             
@@ -268,6 +268,8 @@ class CLI:
                     else:
                         self.console.print("[bold red][-] Operation canceled.[/bold red]")
                         self.ai._add_history("system", f"Operation {key} canceled by user")
+                        if op_type == "create" or op_type == "edit":
+                            os.remove(self.change_files[key][1])
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
