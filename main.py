@@ -150,7 +150,7 @@ class CLI:
                     case "run":
                         key = f"run_{op_counter}"
                         display_str = _generate_runstr(op.command)
-                        self.asks[key] = (display_str, "run", " ".join(op.command))
+                        self.asks[key] = (display_str, "run", op.command)
                         op_counter += 1
                     
                     case "read":
@@ -202,7 +202,9 @@ class CLI:
         for key in self.asks:
             display_str, op_type, op_data = self.asks[key]
             if op_type == "run":
-                ask_for_all += f"|  Command: {op_data.ljust(len(ask_for_all.splitlines()[0]) - 14)}  |\n"
+                if isinstance(op_data, list): cmd_display = " ".join(op_data)
+                else: cmd_display = op_data
+                ask_for_all += f"|  Command: {cmd_display.ljust(len(ask_for_all.splitlines()[0]) - 14)}  |\n"
             else:  # file operation
                 change_type, change_data = op_data
                 if change_type == "edit":
