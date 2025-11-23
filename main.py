@@ -219,7 +219,7 @@ class CLI:
         ask_for_all += "-" * len(ask_for_all.splitlines()[0]) + "\n"
         self.console.print(f"[bold yellow]{ask_for_all}[/bold yellow]")
         
-        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one) >>> [/bold blue]", end="")
+        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one, default=o) >>> [/bold blue]", end="")
         decision = self.console.input().strip().lower()
         
         keys_to_process = list(self.asks.keys())
@@ -247,14 +247,14 @@ class CLI:
                         os.remove(self.change_files[temp][1])
                 self.change_files.clear()
             
-            case "o":
+            case _:
                 for key in keys_to_process:
                     if key not in self.asks:
                         continue
                     
                     display_str, op_type, op_data = self.asks[key]
                     self.console.print(display_str)
-                    self.console.print("[bold blue]CONFIRM (y/n) >>> [/bold blue]", end="")
+                    self.console.print("[bold blue]CONFIRM (y/n/?=skip but remain the file, default=?) >>> [/bold blue]", end="")
                     confirm = self.console.input().strip().lower()
                     
                     if confirm == "y":
@@ -265,11 +265,17 @@ class CLI:
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
-                    else:
+                    elif confirm == "n":
                         self.console.print("[bold red][-] Operation canceled.[/bold red]")
                         self.ai._add_history("system", f"Operation {key} canceled by user")
                         if op_type == "create" or op_type == "edit":
                             os.remove(self.change_files[key][1])
+                        del self.asks[key]
+                        if key in self.change_files:
+                            del self.change_files[key]
+                    else:
+                        self.console.print("[bold yellow][!] Operation skipped but the file remains.[/bold yellow]")
+                        self.ai._add_history("system", f"Operation {key} skipped but the file remains")
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
