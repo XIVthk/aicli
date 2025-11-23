@@ -219,25 +219,12 @@ class CLI:
         ask_for_all += "-" * len(ask_for_all.splitlines()[0]) + "\n"
         self.console.print(f"[bold yellow]{ask_for_all}[/bold yellow]")
         
-        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one, default=o) >>> [/bold blue]", end="")
+        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one, default=a) >>> [/bold blue]", end="")
         decision = self.console.input().strip().lower()
         
         keys_to_process = list(self.asks.keys())
         
         match decision:
-            case "a":
-                for key in keys_to_process:
-                    if key not in self.asks:
-                        continue
-                    display_str, op_type, op_data = self.asks[key]
-                    if op_type == "run":
-                        self._run_cmd(op_data)
-                    else:
-                        self._change_file(key, op_data)
-                    del self.asks[key]
-                    if key in self.change_files:
-                        del self.change_files[key]
-            
             case "c":
                 self.console.print("[bold red][-] All operations canceled.[/bold red]")
                 self.ai._add_history("system", "All operations canceled by user")
@@ -247,7 +234,7 @@ class CLI:
                         os.remove(self.change_files[temp][1])
                 self.change_files.clear()
             
-            case _:
+            case "o":
                 for key in keys_to_process:
                     if key not in self.asks:
                         continue
@@ -279,6 +266,19 @@ class CLI:
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
+
+            case _:
+                for key in keys_to_process:
+                    if key not in self.asks:
+                        continue
+                    display_str, op_type, op_data = self.asks[key]
+                    if op_type == "run":
+                        self._run_cmd(op_data)
+                    else:
+                        self._change_file(key, op_data)
+                    del self.asks[key]
+                    if key in self.change_files:
+                        del self.change_files[key]
 
     def _run_cmd(self, cmd: str | list[str]):
         result = self.command_executor.execute(cmd, cwd=self.whereami)
