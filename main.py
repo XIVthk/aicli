@@ -34,7 +34,7 @@ system_prompt = """
 **标记规则：**
 - 执行终端(Powershell/Bash)命令 %%run <command> [**kwargs, e.g. check=False, capture_output=True, text=True]
 - 读取文件 %%read <file> ，这会在用户的下一次问题前将文件内容插入对话。
-- 更改文件 %%edit <file>  (使用%%run echo)
+- 更改文件 %%edit <file>
 - 删除文件 %%delete <file>  (使用%%run del)
 - 新增文件 %%create <file>
 - 新增目录 %%new_dir <dir>  (使用%%run mkdir)
@@ -42,7 +42,7 @@ system_prompt = """
 - 每个标记必须单独一行
 - 文件内容从标记的下一行开始，到下一个标记或回复结束
 - 任何文件路径都必须是绝对路径，禁用相对路径
-- 在非必要情况下，尽量使用%%run <command>而非其他对文件操作
+- 在非必要情况下，尽量使用%%run <command>而非其他对文件操作 (除了%%edit和%%create)
 - 所有文件路径的分隔符都需要使用反斜杠
 - 你给出的所有命令都会在用户处请求同意，若用户不同意执行命令，你将会收到SYSTEM的提示，反之，你不会收到提示
 - 给用户建议运行命令时，不需要使用%%run标记
@@ -202,19 +202,19 @@ class CLI:
         for key in self.asks:
             display_str, op_type, op_data = self.asks[key]
             if op_type == "run":
-                ask_for_all += f"Command: {op_data}\n"
+                ask_for_all += f"|  Command: {op_data.ljust(len(ask_for_all.splitlines()[0]) - 14)}  |\n"
             else:  # file operation
                 change_type, change_data = op_data
                 if change_type == "edit":
-                    ask_for_all += f"FileChange: edit {key}\n"
+                    ask_for_all += f"|  FC: edit {key.ljust(len(ask_for_all.splitlines()[0]) - 5)}  |\n"
                 elif change_type == "delete":
-                    ask_for_all += f"FileChange: delete {key}\n"
+                    ask_for_all += f"|  FC: delete {key.ljust(len(ask_for_all.splitlines()[0]) - 7)}  |\n"
                 elif change_type == "create":
-                    ask_for_all += f"FileChange: create {key}\n"
+                    ask_for_all += f"|  FC: create {key.ljust(len(ask_for_all.splitlines()[0]) - 7)}  |\n"
                 elif change_type == "new_dir":
-                    ask_for_all += f"FileChange: create directory {key}\n"
+                    ask_for_all += f"|  FC: create directory {key.ljust(len(ask_for_all.splitlines()[0]) - 17)}  |\n"
                 elif change_type == "rename":
-                    ask_for_all += f"FileChange: rename {key} -> {change_data}\n"
+                    ask_for_all += f"|  FC: rename {(key + "->" + change_data).ljust(len(ask_for_all.splitlines()[0]) - 7)}  |\n"
         
         ask_for_all += "-" * len(ask_for_all.splitlines()[0]) + "\n"
         self.console.print(f"[bold yellow]{ask_for_all}[/bold yellow]")
@@ -312,8 +312,8 @@ class CLI:
                 self.question()
                 self.update()
             except Exception as e:
-                self.console.print(f"[bold red][#!] Fatal Error captured: {e}[/bold red]")
-                continue
+                self.console.print(f"[bold red]<#!> Fatal Error captured: {e}[/bold red]")
+                raise e
 
 if __name__ == "__main__":
     cli = CLI()
