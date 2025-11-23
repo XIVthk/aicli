@@ -22,6 +22,7 @@ class Operation:
     content: str = None
     new_name: str = None
     dir: str = None
+    language: str = None
 
 def parse_ai_response(response: str) -> list[Operation | str]:
     parts = response.split("\n")
@@ -29,15 +30,29 @@ def parse_ai_response(response: str) -> list[Operation | str]:
     edit = False
     create = False
     in_block = False
+    language = None
     contents = []
+    file = None
     for line in parts:
         if edit or create:
-            if line.startswith("```"):
-                if not in_block: in_block = True; continue
-                else: in_block = False
-            if in_block:
-                contents.append(line.replace("```", ""))
+            if line.startswith("[file_start"):
+                language = line.split(" ")[1][:-1]
+                in_block = True
                 continue
+            if line == "[file_end]":
+                in_block = False
+                ops.append(Operation(
+                    type="edit" if edit else "create",
+                    file=file,
+                    content="\n".join(contents).replace("[file_end]", ""),
+                    language=language
+                ))
+                contents = []; create, edit = False, False
+                continue
+            if in_block:
+                contents.append(line)
+                continue 
+
         elif line.startswith("%%"):
             _op, *args = line.split(" ")
             match _op:
@@ -98,25 +113,18 @@ def parse_ai_response(response: str) -> list[Operation | str]:
                         new_name=new_name
                     ))
                     continue
-        if not in_block and (edit or create):
-            if contents:
-                ops.append(Operation(
-                    type="edit" if edit else "create",
-                    file=file,
-                    content="\n".join(contents).replace("\\`", "`")
-                ))
-            contents = []; create, edit = False, False
-            continue
-        
+
         if not (edit or create or in_block) and line.strip():
             ops.append(line)
     return ops
 
 if __name__ == "__main__":
-    print(parse_ai_response("""
+    test = """
 %%create hello.md
-```markdown
-\\`\\`\\`bash
-???
-\\`\\`\\`
-```"""))
+[file_start markdown]
+```bash
+rm -rf /
+```
+[file_end]
+"""
+    print(parse_ai_response(test))

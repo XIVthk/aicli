@@ -8,6 +8,7 @@
     工作状态: Working
 """
 import os
+import platform
 import subprocess
 
 class ProjectContexter:
@@ -23,7 +24,8 @@ class ProjectContexter:
             "where_am_i": self.current_path,
             "whats_here": self._see_files(),
             "recent_changes": self._see_changes(),
-            "git_status": self._see_git()
+            "git_status": self._see_git(),
+            "os": self._get_os_info()
         }
         self.project_info = info
         return info
@@ -133,12 +135,17 @@ class ProjectContexter:
         except:
             pass
         return "Not a git repository or git not available"
+        
+    def _get_os_info(self) -> str:
+        p = platform.system()
+        return f"OS: {p}"
     
     def display_project_context(self) -> None:
         return f"""
 ==================================================
 项目上下文信息
 ==================================================
+操作系统: {self.project_info['os']}
 当前位置: {self.project_info['where_am_i']}
 
 文件结构:

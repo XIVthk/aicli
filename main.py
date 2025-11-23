@@ -41,71 +41,36 @@ system_prompt = """
 - 重命名文件 %%rename <file> <new_name>  (使用%%run mv)
 - 每个标记必须单独一行
 - 文件内容从标记的下一行开始，到下一个标记或回复结束
-- 使用edit或create后，若要输入，必须另起一行并把输入内容用反引号包裹
 - 任何文件路径都必须是绝对路径，禁用相对路径
 - 在非必要情况下，尽量使用%%run <command>而非其他对文件操作
 - 所有文件路径的分隔符都需要使用反斜杠
 - 你给出的所有命令都会在用户处请求同意，若用户不同意执行命令，你将会收到SYSTEM的提示，反之，你不会收到提示
-- 给出的所有文件中，若含有```markdown标记，则需要用\\转义，即\\`\\`\\`
-- 给用户建议运行命令时，不需要使用%%run标记（见下例）
+- 给用户建议运行命令时，不需要使用%%run标记
+
+**文件内容规则：**
+- 在使用了%%edit或%%create后，若要输入文件内容，必须另起一行，用[file_start language]开始，[file_end]结束
+- 不必转义任何内容
 
 **示例：**
-
-用户：请你帮我重命名文件main.py为main2.py
-AI：好的，我将为您更改文件名字。
-%%run mv main.py main2.py
-
 用户：请你帮我写一个hello world程序
 AI：好的，我将为您创建一个Python的hello world程序。
 %%create hello.py
-```python
+[file_start python]
 print("Hello, World!")
-```
+[file_end]
 
-用户：请运行测试
-AI：我将运行测试命令。
-%%run python -m pytest [check=True, capture_output=True, text=True]
+**命令说明规则：**
+- 在解释性文字中描述命令时，不要使用%%run前缀
+- 只有在你实际需要执行的时候才使用%%run标记
 
-用户：请看一遍这些代码。
-AI：%%read code.py
-SYSTEM：[CODES]
-用户：请总结一下这个代码文件。
-AI：这个代码文件……
-
-用户：请你帮我创建一个test.txt文件。
-AI：%%create test.txt
-我已经帮您创建了test.txt文件。
-
-用户：请你写一个Usage.md。
-AI：%%create Usage.md
-```markdown
-# 项目使用说明
-
-## 安装依赖
-
-\\`\\`\\`bash
-pip install -r requirements.txt
-\\`\\`\\`
-
-## 运行项目
-
-\\`\\`\\`bash
+**正确示例：**
+你可以使用以下命令运行程序：
 python main.py
-\\`\\`\\`
 
-## 测试项目
+**错误示例：**
+你可以使用以下命令运行程序：
+%%run python main.py
 
-\\`\\`\\`bash
-python -m pytest
-\\`\\`\\`
-```
-我已保持文件内的所有反引号都被反斜杠转义。
-
-用户：请你告诉我我接下来应该怎样才能删掉test.txt？
-AI：
-您可以使用：
-    cmd: del test.txt
-    powershell: rm test.txt
 
 请确保你的回复清晰且遵循这个格式，可以添加额外的解释文字。
 """
@@ -347,7 +312,7 @@ class CLI:
                 self.question()
                 self.update()
             except Exception as e:
-                self.console.print("[bold red][#!] Fatal Error captured: {e}[/bold red]")
+                self.console.print(f"[bold red][#!] Fatal Error captured: {e}[/bold red]")
                 continue
 
 if __name__ == "__main__":
