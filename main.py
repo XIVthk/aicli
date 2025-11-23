@@ -315,6 +315,14 @@ class CLI:
         self.change_files = {}
 
     def run(self, working: bool = True):
+        ASCIItext = r"""
+  _____                          _                              ____   _       ___ 
+ |  ___|   ___    _   _   _ __  | |_    ___    ___   _ __      / ___| | |     |_ _|
+ | |_     / _ \  | | | | | '__| | __|  / _ \  / _ \ | '_ \    | |     | |      | | 
+ |  _|   | (_) | | |_| | | |    | |_  |  __/ |  __/ | | | |   | |___  | |___   | | 
+ |_|      \___/   \__,_| |_|     \__|  \___|  \___| |_| |_|    \____| |_____| |___|
+"""
+        self.console.print("[bold blue]" + ASCIItext + "[/bold blue]")
         while working:
             try:
                 self.question()
