@@ -61,6 +61,9 @@ class AI:
     def _add_history(self, role: str, content: str):
         self.history.append({"role": role, "content": content})
     
+    def _clear_history_withstartswith(self, startswith: str):
+        self.history = [msg for msg in self.history if not msg["content"].startswith(startswith)]
+    
     def clear_history(self):
         self.history = [{"role": "system", "content": self.system_prompt}]
     

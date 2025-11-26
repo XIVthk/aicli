@@ -86,6 +86,9 @@ class CLI:
         self.project_viewer = ProjectContexter(self.whereami)
         self.ques, self.response = None, None
         self.after_question = self.project_viewer.display_project_context()
+        self.rules = {
+            "command": False
+        }
         self.asks = {}
         self.change_files = {}
     
@@ -93,22 +96,66 @@ class CLI:
         self.console.print(f"[bold blue]ASK {self.whereami}>>> [/bold blue]", end="")
         ques = self.console.input()
         if not ques.strip(): return
-        if not ques.startswith("/"):
+        if not ques.startswith("/") and not self.rules["command"]:
             self.ques = self.after_question + ques
             self.ask()
         else:
-            if ques.startswith("/cd"):
-                self.cwd_manager.parse_cd(ques[1:])
+            ques = ques[1:] if (not self.rules["command"]) else ques
+            if ques.startswith("cd"):
+                self.cwd_manager.parse_cd(ques)
                 if self.cwd_manager.err:
                     self.console.print(f"[bold red][-] {self.cwd_manager.err}[/bold red]")
                     return
                 self.whereami = self.cwd_manager.whereami
                 return
-            if ques == "/readfiles":
+            elif ques == "readfiles":
                 for file in os.listdir(self.whereami):
                     if os.path.isdir(file):
                         continue
                     self.ai._add_history("system", "FILE " + file + "\n" + FileChanger(file).read())
+                    self.console.print(f"[bold green][+] FILE {file} added.[/bold green]")
+                return
+            elif ques.startswith("readfile"):
+                try:
+                    temp, file = ques.split(" ") 
+                except Exception as e:
+                    self.console.print(f"[bold red][-] Wrong syntax: {ques.strip()}[/bold red]")
+                    self.console.print(f"[bold yellow][*] Usage: /readfile <file>[/bold yellow]")
+                    return
+                if not os.path.isfile(file):
+                    self.console.print(f"[bold red][-] File not found: {file}[/bold red]")
+                    return
+                self.ai._add_history("system", "FILE " + file + "\n" + FileChanger(file).read())
+                self.console.print(f"[bold green][+] FILE {file} added.[/bold green]")
+                return
+            elif ques == "clearfiles":
+                self.ai._clear_history_withstartswith(startswith="FILE ")
+                self.console.print("[bold green][+] All files cleared.[/bold green]")
+                return
+            elif ques in ["cls", "clear", "clearscreen"]:
+                self.console.clear()
+                return
+            elif ques == "exit":
+                self.console.print("[bold yellow][*] Exiting...[/bold yellow]")
+                time.sleep(1)
+                exit(0)
+            elif ques.startswith("rule"):
+                try:
+                    temp, rule, value = ques.split(" ") 
+                except Exception as e:
+                    self.console.print(f"[bold red][-] Wrong syntax: {ques.strip()}[/bold red]")
+                    self.console.print(f"[bold yellow][*] Usage: /rule <rulename> <true|false>[/bold yellow]")
+                    return
+                if rule not in self.rules:
+                    self.console.print(f"[bold red][-] Unknown rule: {rule}[/bold red]")
+                    self.console.print(f"[bold yellow][*] Available rules: {', '.join(self.rules.keys())}[/bold yellow]")
+                    return
+                if value.strip().lower() not in ["true", "1", "false", "0"]:
+                    self.console.print(f"[bold red][-] Wrong value: {value.strip()}[/bold red]")
+                    self.console.print(f"[bold yellow][*] Usage: /rule <rulename> <true|false>[/bold yellow]")
+                    return
+                self.rules[rule] = value.strip().lower() in ["true", "1"]
+                self.console.print(f"[bold green][+] Rule {rule} set to {self.rules[rule]}[/bold green]")
                 return
             result = self.command_executor.execute(ques[1:], cwd=self.whereami)
             if result.returncode == 0:
@@ -117,7 +164,6 @@ class CLI:
                 self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
     
     def ask(self):
-        self.console.print("[grey]AI thinking[/grey]")
         self.response = parse_ai_response(self.ai.ask(self.ques))
         self.submit_op_prep()
     
