@@ -100,7 +100,7 @@ class CLI:
             self.ques = self.after_question + ques
             self.ask()
         else:
-            ques = ques[1:] if (not self.rules["command"]) else ques
+            ques = ques[0:] if not self.rules["command"] else ques
             if ques.startswith("cd"):
                 self.cwd_manager.parse_cd(ques)
                 if self.cwd_manager.err:
