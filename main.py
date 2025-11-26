@@ -5,6 +5,7 @@
 工作状态: Done
 """
 import os, time
+import rich.errors
 from rich.console import Console
 
 from command_executor import Commandor
@@ -86,6 +87,11 @@ class CLI:
         self.project_viewer = ProjectContexter(self.whereami)
         self.ques, self.response = None, None
         self.after_question = self.project_viewer.display_project_context()
+        # Color settings
+        self.color = "bold blue"
+        self.errwarn = "bold red"
+        self.hint = "bold yellow"
+        self.success = "bold green"
         self.rules = {
             "command": False
         }
@@ -93,18 +99,18 @@ class CLI:
         self.change_files = {}
     
     def question(self):
-        self.console.print(f"[bold blue]ASK {self.whereami}>>> [/bold blue]", end="")
+        self.console.print(f"[{self.color}]ASK {self.whereami}>>> [/{self.color}]", end="")
         ques = self.console.input()
         if not ques.strip(): return
         if not ques.startswith("/") and not self.rules["command"]:
             self.ques = self.after_question + ques
             self.ask()
         else:
-            ques = ques[0:] if not self.rules["command"] else ques
+            ques = ques[1:] if ques.startswith("/") else ques
             if ques.startswith("cd"):
                 self.cwd_manager.parse_cd(ques)
                 if self.cwd_manager.err:
-                    self.console.print(f"[bold red][-] {self.cwd_manager.err}[/bold red]")
+                    self.console.print(f"[{self.errwarn}][-] {self.cwd_manager.err}[/{self.errwarn}]")
                     return
                 self.whereami = self.cwd_manager.whereami
                 return
@@ -113,56 +119,103 @@ class CLI:
                     if os.path.isdir(file):
                         continue
                     self.ai._add_history("system", "FILE " + file + "\n" + FileChanger(file).read())
-                    self.console.print(f"[bold green][+] FILE {file} added.[/bold green]")
+                    self.console.print(f"[{self.success}][+] FILE {file} added.[/{self.success}]")
                 return
             elif ques.startswith("readfile"):
                 try:
                     temp, file = ques.split(" ") 
                 except Exception as e:
-                    self.console.print(f"[bold red][-] Wrong syntax: {ques.strip()}[/bold red]")
-                    self.console.print(f"[bold yellow][*] Usage: /readfile <file>[/bold yellow]")
+                    self.console.print(f"[{self.errwarn}][-] Wrong syntax: {ques.strip()}[/{self.errwarn}]")
+                    self.console.print(f"[{self.hint}][*] Usage: /readfile <file>[/{self.hint}]")
                     return
                 if not os.path.isfile(file):
-                    self.console.print(f"[bold red][-] File not found: {file}[/bold red]")
+                    self.console.print(f"[{self.errwarn}][-] File not found: {file}[/{self.errwarn}]")
                     return
                 self.ai._add_history("system", "FILE " + file + "\n" + FileChanger(file).read())
-                self.console.print(f"[bold green][+] FILE {file} added.[/bold green]")
+                self.console.print(f"[{self.success}][+] FILE {file} added.[/{self.success}]")
                 return
             elif ques == "clearfiles":
                 self.ai._clear_history_withstartswith(startswith="FILE ")
-                self.console.print("[bold green][+] All files cleared.[/bold green]")
+                self.console.print(f"[{self.success}][+] All files cleared.[/{self.success}]")
                 return
             elif ques in ["cls", "clear", "clearscreen"]:
                 self.console.clear()
                 return
             elif ques == "exit":
-                self.console.print("[bold yellow][*] Exiting...[/bold yellow]")
+                self.console.print(f"[{self.hint}][*] Exiting...[/{self.hint}]")
                 time.sleep(1)
                 exit(0)
             elif ques.startswith("rule"):
                 try:
                     temp, rule, value = ques.split(" ") 
                 except Exception as e:
-                    self.console.print(f"[bold red][-] Wrong syntax: {ques.strip()}[/bold red]")
-                    self.console.print(f"[bold yellow][*] Usage: /rule <rulename> <true|false>[/bold yellow]")
+                    self.console.print(f"[{self.errwarn}][-] Wrong syntax: {ques.strip()}[/{self.errwarn}]")
+                    self.console.print(f"[{self.hint}][*] Usage: /rule <rulename> <true|false>[/{self.hint}]")
                     return
                 if rule not in self.rules:
-                    self.console.print(f"[bold red][-] Unknown rule: {rule}[/bold red]")
-                    self.console.print(f"[bold yellow][*] Available rules: {', '.join(self.rules.keys())}[/bold yellow]")
+                    self.console.print(f"[{self.errwarn}][-] Unknown rule: {rule}[/{self.errwarn}]")
+                    self.console.print(f"[{self.hint}][*] Available rules: {', '.join(self.rules.keys())}[/{self.hint}]")
                     return
                 if value.strip().lower() not in ["true", "1", "false", "0"]:
-                    self.console.print(f"[bold red][-] Wrong value: {value.strip()}[/bold red]")
-                    self.console.print(f"[bold yellow][*] Usage: /rule <rulename> <true|false>[/bold yellow]")
+                    self.console.print(f"[{self.errwarn}][-] Wrong value: {value.strip()}[/{self.errwarn}]")
+                    self.console.print(f"[{self.hint}][*] Usage: /rule <rulename> <true|false>[/{self.hint}]")
                     return
                 self.rules[rule] = value.strip().lower() in ["true", "1"]
-                self.console.print(f"[bold green][+] Rule {rule} set to {self.rules[rule]}[/bold green]")
+                self.console.print(f"[{self.success}][+] Rule {rule} set to {self.rules[rule]}[/{self.success}]")
                 return
-            result = self.command_executor.execute(ques[1:], cwd=self.whereami)
+            elif ques == "color":
+                self.console.print(f"""         [{self.hint}][*] Colors now:
+                        0> Main theme: [{self.color}]{self.color}[/{self.color}]
+                        1> Error/Warning: [{self.errwarn}]{self.errwarn}[/{self.errwarn}]
+                        2> Hint: [{self.hint}]{self.hint}[/{self.hint}]
+                        3> Success: [{self.success}]{self.success}[/{self.success}][/{self.hint}]""")
+                color_index = self.console.input("Which color to change? (0/1/2/3): ")
+                if color_index not in ["0", "1", "2", "3"]:
+                    self.console.print(f"[{self.errwarn}][-] Wrong index: {color_index}[/{self.errwarn}]")
+                    self.console.print(f"[{self.hint}][*] Usage: /color <0/1/2/3>[/{self.hint}]")
+                    return
+                new_color = self.console.input("New color: ")
+                if not new_color.strip():
+                    self.console.print(f"[{self.errwarn}][-] Wrong color: {new_color}[/{self.errwarn}]")
+                    return
+                old_colors = {
+                    "0": self.color,
+                    "1": self.errwarn,
+                    "2": self.hint,
+                    "3": self.success,
+                }
+                if color_index == "0":
+                    self.color = new_color
+                elif color_index == "1":
+                    self.errwarn = new_color
+                elif color_index == "2":
+                    self.hint = new_color
+                elif color_index == "3":
+                    self.success = new_color
+                if not self._check_color():
+                    self.color = old_colors["0"]
+                    self.errwarn = old_colors["1"]
+                    self.hint = old_colors["2"]
+                    self.success = old_colors["3"]
+                else: self.console.print(f"[{self.success}][+] Color {color_index} set to {new_color}[/{self.success}]")
+                return
+            result = self.command_executor.execute(ques, cwd=self.whereami)
             if result.returncode == 0:
-                self.console.print("[bold green][+][/bold green] " + result.stdout if result.stdout else "[bold green][+] Done[/bold green]")
+                self.console.print(f"[{self.success}][+][/{self.success}] " + result.stdout if result.stdout else f"[{self.success}][+] Done[/{self.success}]")
             else:
-                self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
-    
+                self.console.print(f"[{self.errwarn}][-] {result.stderr}[/{self.errwarn}]")
+
+    def _check_color(self):
+        try:
+            self.console.print(f"[{self.color}][/{self.color}]", end="")
+            self.console.print(f"[{self.errwarn}][/{self.errwarn}]", end="")
+            self.console.print(f"[{self.hint}][/{self.hint}]", end="")
+            self.console.print(f"[{self.success}][/{self.success}]", end="")
+            return True
+        except rich.errors.MarkupError:
+            self.console.print(f"[{self.errwarn}][-] Color not exists.[/{self.errwarn}]")
+            return False
+
     def ask(self):
         self.response = parse_ai_response(self.ai.ask(self.ques))
         self.submit_op_prep()
@@ -170,13 +223,13 @@ class CLI:
     def submit_op_prep(self):
         def _generate_runstr(cmd: str | list[str]) -> str:
             cmd_str = cmd if isinstance(cmd, str) else " ".join(cmd)
-            run_s = f"[bold yellow] {'-' * 20} Execute? ([bold green]y[/bold green]/[bold red]n[/bold red]) {'-' * 20}\n"
+            run_s = f"[{self.hint}] {'-' * 20} Execute? ([{self.success}]y[/{self.success}]/[{self.errwarn}]n[/{self.errwarn}]) {'-' * 20}\n"
             run_s += f"|  {cmd_str.ljust(len(run_s.splitlines()[0]) - 62)}|\n"
             run_s += f" {'-' * (len(run_s.splitlines()[0]) - 60)}\n"
             return run_s
         
         def _generate_filestr(filename: str, change_type: tuple[str, str | None]) -> str:
-            file_s = f"[bold yellow]{'-' * 20} FileChange? ([bold green]y[/bold green]/[bold red]n[/bold red]) {'-' * 20}\n"
+            file_s = f"[{self.hint}]{'-' * 20} FileChange? ([{self.success}]y[/{self.success}]/[{self.errwarn}]n[/{self.errwarn}]) {'-' * 20}\n"
             file_s += f"|  {f'{change_type[0]} {filename}'.ljust(len(file_s.splitlines()[0]) - 64)}|\n"
             if change_type[0] in ["edit", "create"]:
                 file_s += f"|     └── {change_type[1].ljust(len(file_s.splitlines()[0]) - 71)}|\n"
@@ -265,16 +318,16 @@ class CLI:
                     ask_for_all += f"|  FC: rename {(key + "->" + change_data).ljust(len(ask_for_all.splitlines()[0]) - 7)}  |\n"
         
         ask_for_all += "-" * len(ask_for_all.splitlines()[0]) + "\n"
-        self.console.print(f"[bold yellow]{ask_for_all}[/bold yellow]")
+        self.console.print(f"[{self.hint}]{ask_for_all}[/{self.hint}]")
         
-        self.console.print("[bold blue]DECISION (a=agree all, c=cancel all, o=one-by-one, default=a) >>> [/bold blue]", end="")
+        self.console.print(f"[{self.color}]DECISION (a=agree all, c=cancel all, o=one-by-one, default=a) >>> [/{self.color}]", end="")
         decision = self.console.input().strip().lower()
         
         keys_to_process = list(self.asks.keys())
         
         match decision:
             case "c":
-                self.console.print("[bold red][-] All operations canceled.[/bold red]")
+                self.console.print(f"[{self.errwarn}][-] All operations canceled.[/{self.errwarn}]")
                 self.ai._add_history("system", "All operations canceled by user")
                 self.asks.clear()
                 for temp in self.change_files:
@@ -289,17 +342,17 @@ class CLI:
                     
                     display_str, op_type, op_data = self.asks[key]
                     self.console.print(display_str)
-                    self.console.print("[bold blue]CONFIRM (y/n/s=skip(remain files), default=y) >>> [/bold blue]", end="")
+                    self.console.print(f"[{self.color}]CONFIRM (y/n/s=skip(remain files), default=y) >>> [/{self.color}]", end="")
                     confirm = self.console.input().strip().lower()
                     
                     if confirm == "s":
-                        self.console.print("[bold yellow][!] Operation skipped but the file remains.[/bold yellow]")
+                        self.console.print(f"[{self.hint}][!] Operation skipped but the file remains.[/{self.hint}]")
                         self.ai._add_history("system", f"Operation {key} skipped but the file remains")
                         del self.asks[key]
                         if key in self.change_files:
                             del self.change_files[key]
                     elif confirm == "n":
-                        self.console.print("[bold red][-] Operation canceled.[/bold red]")
+                        self.console.print(f"[{self.errwarn}][-] Operation canceled.[/{self.errwarn}]")
                         self.ai._add_history("system", f"Operation {key} canceled by user")
                         if op_type == "create" or op_type == "edit":
                             os.remove(self.change_files[key][1])
@@ -332,9 +385,9 @@ class CLI:
         result = self.command_executor.execute(cmd, cwd=self.whereami)
         if result.returncode == 0:
             output = result.stdout if result.stdout else "Done"
-            self.console.print(f"[bold green][+] {output}[/bold green]")
+            self.console.print(f"[{self.success}][+] {output}[/{self.success}]")
         else:
-            self.console.print(f"[bold red][-] {result.stderr}[/bold red]")
+            self.console.print(f"[{self.errwarn}][-] {result.stderr}[/{self.errwarn}]")
 
     def _change_file(self, file: str, change_type_data: tuple[str, str | None]):
         change_type, change_data = change_type_data
@@ -370,13 +423,13 @@ class CLI:
  |  _|   | (_) | | |_| | | |    | |_  |  __/ |  __/ | | | |   | |___  | |___   | | 
  |_|      \___/   \__,_| |_|     \__|  \___|  \___| |_| |_|    \____| |_____| |___|
 """
-        self.console.print("[bold blue]" + ASCIItext + "[/bold blue]")
+        self.console.print(f"[{self.color}]" + ASCIItext + f"[/{self.color}]")
         while working:
             try:
                 self.question()
                 self.update()
             except Exception as e:
-                self.console.print(f"[bold red]<#!> Fatal Error captured: {e}[/bold red]")
+                self.console.print(f"[{self.errwarn}]<#!> Fatal Error captured: {e}[/{self.errwarn}]")
                 raise e
 
 if __name__ == "__main__":
